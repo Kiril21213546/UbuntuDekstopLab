@@ -47,11 +47,24 @@ pipeline {
             }
         }
 
-        stage("Smoke test") {
+        stage("Health check (stable)") {
             steps {
                 sh """
-                sleep 2
-                curl -s http://localhost:${HOST_PORT}/health | grep healthy
+                echo "Waiting for container..."
+                sleep 5
+
+                for i in \$(seq 1 10); do
+                    STATUS=\$(docker exec ${APP_NAME} curl -s http://localhost:${CONTAINER_PORT}/health || true)
+
+                    echo "Attempt \$i: \$STATUS"
+
+                    echo "\$STATUS" | grep -q "healthy" && exit 0
+
+                    sleep 2
+                done
+
+                echo "Health check failed"
+                exit 1
                 """
             }
         }
@@ -59,6 +72,7 @@ pipeline {
 
     post {
         always {
+            sh "docker ps || true"
             sh "docker images | head -n 5 || true"
         }
     }
