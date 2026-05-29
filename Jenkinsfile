@@ -6,6 +6,9 @@ pipeline {
         CONTAINER_NAME = "flask-app"
         HOST_PORT = "8081"
         APP_PORT = "5000"
+
+        // ВАЖНО: доступ к host машине из Jenkins container
+        HOST_IP = "172.17.0.1"
     }
 
     stages {
@@ -46,12 +49,12 @@ pipeline {
 
                 for i in \$(seq 1 30)
                 do
-                    RESPONSE=\$(curl -s --max-time 2 http://localhost:${HOST_PORT}/health || echo "NO_RESPONSE")
+                    HTTP_CODE=\$(curl -s -o /tmp/resp -w "%{http_code}" http://${HOST_IP}:${HOST_PORT}/health || true)
+                    BODY=\$(cat /tmp/resp 2>/dev/null || true)
 
-                    echo "Attempt \$i -> \$RESPONSE"
+                    echo "Attempt \$i -> code=\$HTTP_CODE body=\$BODY"
 
-                    if echo "\$RESPONSE" | grep -q "healthy"
-                    then
+                    if [ "\$HTTP_CODE" = "200" ]; then
                         echo "APP IS HEALTHY"
                         exit 0
                     fi
@@ -60,7 +63,7 @@ pipeline {
                 done
 
                 echo "Smoke test FAILED"
-                docker logs ${CONTAINER_NAME} || true
+                docker logs ${CONTAINER_NAME}
                 exit 1
                 """
             }
