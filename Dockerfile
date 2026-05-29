@@ -1,12 +1,13 @@
-FROM jenkins/jenkins:lts
+FROM python:3.12-slim
 
-USER root
+WORKDIR /app
 
-RUN apt-get update && apt-get install -y lsb-release ca-certificates curl gnupg --no-install-recommends \
-    && curl -fsSL https://docker.com | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://docker.com $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y docker-ce-cli --no-install-recommends \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
 
-USER jenkins
+RUN pip install --no-cache-dir -r requirements.txt
 
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "-m", "flask", "--app", "app.py", "run", "--host=0.0.0.0", "--port=5000"]
