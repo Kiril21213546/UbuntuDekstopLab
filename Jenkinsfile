@@ -19,26 +19,20 @@ pipeline {
 
         stage("Build Docker image") {
             steps {
-                sh """
-                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                """
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
 
         stage("Run tests") {
             steps {
-                sh """
-                docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} pytest -q
-                """
+                sh "docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} pytest -q"
             }
         }
 
         stage("Deploy container") {
             steps {
                 sh """
-                if docker ps -a --format '{{.Names}}' | grep -w ${APP_NAME}; then
-                    docker rm -f ${APP_NAME}
-                fi
+                docker rm -f ${APP_NAME} || true
 
                 docker run -d --name ${APP_NAME} \
                 -p ${HOST_PORT}:${CONTAINER_PORT} \
@@ -47,26 +41,27 @@ pipeline {
             }
         }
 
-        stage("Health check (stable)") {
+        stage("Health check (FIXED)") {
             steps {
                 sh """
-                echo "Waiting for container..."
+                echo "Waiting for Flask container..."
+
                 sleep 5
 
                 for i in \$(seq 1 10); do
-                    STATUS=\$(curl -s http://localhost:${HOST_PORT}/health || true)
+                    RESPONSE=\$(docker exec ${APP_NAME} python -c "
+import requests
+print(requests.get('http://localhost:${CONTAINER_PORT}/health').text)
+" 2>/dev/null || true)
 
-                    echo "Attempt \$i: \$STATUS"
+                    echo "Attempt \$i: \$RESPONSE"
 
-                    if echo "\$STATUS" | grep -q "healthy"; then
-                        echo "Application is healthy!"
-                        exit 0
-                    fi
+                    echo "\$RESPONSE" | grep -q "healthy" && exit 0
 
                     sleep 2
                 done
 
-                echo "Health check failed"
+                echo "Health check FAILED"
                 exit 1
                 """
             }
@@ -80,4 +75,3 @@ pipeline {
         }
     }
 }
-
