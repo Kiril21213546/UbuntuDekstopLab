@@ -49,11 +49,11 @@ pipeline {
 
         stage("Smoke test") {
             steps {
-                sh """
+                sh '''
                 echo "Waiting for Flask to start..."
 
                 for i in {1..20}; do
-                    if curl -s http://localhost:${HOST_PORT}/health; then
+                    if curl -s http://localhost:8081/health; then
                         echo "App is up!"
                         exit 0
                     fi
@@ -64,7 +64,7 @@ pipeline {
 
                 echo "App failed to start"
                 exit 1
-                """
+                '''
             }
         }
     }
