@@ -33,7 +33,7 @@ pipeline {
                 sh """
                 docker rm -f ${CONTAINER_NAME} || true
                 docker run -d --name ${CONTAINER_NAME} -p ${HOST_PORT}:${APP_PORT} ${IMAGE_NAME}
-                sleep 3
+                sleep 5
                 docker ps
                 """
             }
@@ -44,9 +44,9 @@ pipeline {
                 sh """
                 echo "Waiting for Flask..."
 
-                for i in \$(seq 1 25)
+                for i in \$(seq 1 30)
                 do
-                    RESPONSE=\$(curl -s http://localhost:${HOST_PORT}/health || true)
+                    RESPONSE=\$(curl -s --max-time 2 http://localhost:${HOST_PORT}/health || echo "NO_RESPONSE")
 
                     echo "Attempt \$i -> \$RESPONSE"
 
@@ -60,7 +60,7 @@ pipeline {
                 done
 
                 echo "Smoke test FAILED"
-                docker logs ${CONTAINER_NAME}
+                docker logs ${CONTAINER_NAME} || true
                 exit 1
                 """
             }
