@@ -33,35 +33,30 @@ pipeline {
             steps {
                 sh """
                 docker rm -f ${APP_NAME} || true
-
-                docker run -d --name ${APP_NAME} \
-                -p ${HOST_PORT}:${CONTAINER_PORT} \
-                ${IMAGE_NAME}:${IMAGE_TAG}
+                docker run -d --name ${APP_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} ${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
         }
 
-        stage("Health Check (FINAL FIX)") {
+        stage("Health Check (FIXED FINAL)") {
             steps {
                 sh """
-                echo "Waiting for Flask..."
-
+                echo "Waiting for Flask to start..."
                 sleep 5
 
                 for i in \$(seq 1 15); do
-                    RESULT=\$(docker exec ${APP_NAME} curl -s http://localhost:${CONTAINER_PORT}/health || true)
+                    STATUS=\$(curl -s http://localhost:${HOST_PORT}/health || true)
+                    echo "Attempt \$i: \$STATUS"
 
-                    echo "Attempt \$i: \$RESULT"
-
-                    if echo "\$RESULT" | grep -q "healthy"; then
-                        echo "SUCCESS"
+                    if echo "\$STATUS" | grep -q "healthy"; then
+                        echo "HEALTH CHECK OK"
                         exit 0
                     fi
 
                     sleep 2
                 done
 
-                echo "FAILED HEALTH CHECK"
+                echo "HEALTH CHECK FAILED"
                 exit 1
                 """
             }
