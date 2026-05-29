@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "flask-ci-cd"
+        IMAGE_NAME = "flask-ci-cd:latest"
         CONTAINER_NAME = "flask-app"
         HOST_PORT = "8081"
         APP_PORT = "5000"
@@ -18,17 +18,13 @@ pipeline {
 
         stage('Build Docker image') {
             steps {
-                sh """
-                docker build -t ${IMAGE_NAME}:latest .
-                """
+                sh "docker build -t ${IMAGE_NAME} ."
             }
         }
 
         stage('Run tests') {
             steps {
-                sh """
-                docker run --rm ${IMAGE_NAME}:latest pytest -q
-                """
+                sh "docker run --rm ${IMAGE_NAME} pytest -q"
             }
         }
 
@@ -36,13 +32,9 @@ pipeline {
             steps {
                 sh """
                 docker rm -f ${CONTAINER_NAME} || true
-
-                docker run -d \
-                --name ${CONTAINER_NAME} \
-                -p ${HOST_PORT}:${APP_PORT} \
-                ${IMAGE_NAME}:latest
-
-                echo "Container started"
+                docker run -d --name ${CONTAINER_NAME} -p ${HOST_PORT}:${APP_PORT} ${IMAGE_NAME}
+                sleep 3
+                docker ps
                 """
             }
         }
@@ -58,7 +50,7 @@ pipeline {
 
                     echo "Attempt \$i -> \$RESPONSE"
 
-                    if echo "\$RESPONSE" | grep -q healthy
+                    if echo "\$RESPONSE" | grep -q "healthy"
                     then
                         echo "APP IS HEALTHY"
                         exit 0
@@ -78,9 +70,9 @@ pipeline {
     post {
         always {
             sh """
-            echo "Last logs:"
+            echo "Final logs:"
             docker logs ${CONTAINER_NAME} || true
-            docker ps
+            docker images | head -n 5
             """
         }
     }
