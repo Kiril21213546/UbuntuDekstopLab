@@ -17,19 +17,19 @@ pipeline {
             }
         }
 
-        stage("Build Docker image") {
+        stage("Build") {
             steps {
                 sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
 
-        stage("Run tests") {
+        stage("Test") {
             steps {
                 sh "docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} pytest -q"
             }
         }
 
-        stage("Deploy container") {
+        stage("Deploy") {
             steps {
                 sh """
                 docker rm -f ${APP_NAME} || true
@@ -41,27 +41,27 @@ pipeline {
             }
         }
 
-        stage("Health check (FIXED)") {
+        stage("Health Check (FINAL FIX)") {
             steps {
                 sh """
-                echo "Waiting for Flask container..."
+                echo "Waiting for Flask..."
 
                 sleep 5
 
-                for i in \$(seq 1 10); do
-                    RESPONSE=\$(docker exec ${APP_NAME} python -c "
-import requests
-print(requests.get('http://localhost:${CONTAINER_PORT}/health').text)
-" 2>/dev/null || true)
+                for i in \$(seq 1 15); do
+                    RESULT=\$(docker exec ${APP_NAME} curl -s http://localhost:${CONTAINER_PORT}/health || true)
 
-                    echo "Attempt \$i: \$RESPONSE"
+                    echo "Attempt \$i: \$RESULT"
 
-                    echo "\$RESPONSE" | grep -q "healthy" && exit 0
+                    if echo "\$RESULT" | grep -q "healthy"; then
+                        echo "SUCCESS"
+                        exit 0
+                    fi
 
                     sleep 2
                 done
 
-                echo "Health check FAILED"
+                echo "FAILED HEALTH CHECK"
                 exit 1
                 """
             }
