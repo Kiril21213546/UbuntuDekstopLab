@@ -54,11 +54,14 @@ pipeline {
                 sleep 5
 
                 for i in \$(seq 1 10); do
-                    STATUS=\$(docker exec ${APP_NAME} curl -s http://localhost:${CONTAINER_PORT}/health || true)
+                    STATUS=\$(curl -s http://localhost:${HOST_PORT}/health || true)
 
                     echo "Attempt \$i: \$STATUS"
 
-                    echo "\$STATUS" | grep -q "healthy" && exit 0
+                    if echo "\$STATUS" | grep -q "healthy"; then
+                        echo "Application is healthy!"
+                        exit 0
+                    fi
 
                     sleep 2
                 done
@@ -77,3 +80,4 @@ pipeline {
         }
     }
 }
+
