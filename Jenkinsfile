@@ -6,9 +6,6 @@ pipeline {
         CONTAINER_NAME = "flask-app"
         HOST_PORT = "8081"
         APP_PORT = "5000"
-
-        // ВАЖНО: доступ к host машине из Jenkins container
-        HOST_IP = "172.17.0.1"
     }
 
     stages {
@@ -47,10 +44,12 @@ pipeline {
                 sh """
                 echo "Waiting for Flask..."
 
+                URL="http://localhost:${HOST_PORT}/health"
+
                 for i in \$(seq 1 30)
                 do
-                    HTTP_CODE=\$(curl -s -o /tmp/resp -w "%{http_code}" http://${HOST_IP}:${HOST_PORT}/health || true)
-                    BODY=\$(cat /tmp/resp 2>/dev/null || true)
+                    HTTP_CODE=\$(curl -s -o /tmp/resp.txt -w "%{http_code}" --connect-timeout 2 --max-time 3 \$URL || true)
+                    BODY=\$(cat /tmp/resp.txt 2>/dev/null || true)
 
                     echo "Attempt \$i -> code=\$HTTP_CODE body=\$BODY"
 
