@@ -2,77 +2,56 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "flask-ci-cd:latest"
-        CONTAINER_NAME = "flask-app"
-        NETWORK = "ci-net"
+        APP_NAME = "flask-app"
+        IMAGE_NAME = "flask-ci-cd"
+        IMAGE_TAG = "latest"
+        HOST_PORT = "8081"
+        CONTAINER_PORT = "5000"
     }
 
     stages {
 
-        stage('Checkout') {
-            steps { checkout scm }
-        }
-
-        stage('Build') {
+        stage("Checkout") {
             steps {
-                sh "docker build -t ${IMAGE_NAME} ."
+                checkout scm
             }
         }
 
-        stage('Test') {
-            steps {
-                sh "docker run --rm ${IMAGE_NAME} pytest -q"
-            }
-        }
-
-        stage('Create network') {
-            steps {
-                sh "docker network create ${NETWORK} || true"
-            }
-        }
-
-        stage('Deploy') {
+        stage("Build Docker image") {
             steps {
                 sh """
-                docker rm -f ${CONTAINER_NAME} || true
-
-                docker run -d --name ${CONTAINER_NAME} \
-                    --network ${NETWORK} \
-                    -p 8081:5000 \
-                    ${IMAGE_NAME}
-
-                sleep 5
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 """
             }
         }
 
-        stage('Smoke test') {
+        stage("Run tests") {
             steps {
                 sh """
-                echo "Waiting for Flask..."
+                docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} pytest -q
+                """
+            }
+        }
 
-                URL="http://localhost:8081/health"
+        stage("Deploy container") {
+            steps {
+                sh """
+                if docker ps -a --format '{{.Names}}' | grep -w ${APP_NAME}; then
+                    docker rm -f ${APP_NAME}
+                fi
 
-                for i in \$(seq 1 30)
-                do
-                    HTTP_CODE=\$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
-                        --connect-timeout 2 --max-time 3 \$URL || true)
+                docker run -d --name ${APP_NAME} \
+                -p ${HOST_PORT}:${CONTAINER_PORT} \
+                ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
 
-                    BODY=\$(cat /tmp/resp.txt 2>/dev/null || true)
-
-                    echo "Attempt \$i -> code=\$HTTP_CODE body=\$BODY"
-
-                    if [ "\$HTTP_CODE" = "200" ]; then
-                        echo "APP IS HEALTHY"
-                        exit 0
-                    fi
-
-                    sleep 2
-                done
-
-                echo "FAILED"
-                docker logs ${CONTAINER_NAME}
-                exit 1
+        stage("Smoke test") {
+            steps {
+                sh """
+                sleep 2
+                curl -s http://localhost:${HOST_PORT}/health | grep healthy
                 """
             }
         }
@@ -80,7 +59,7 @@ pipeline {
 
     post {
         always {
-            sh "docker logs ${CONTAINER_NAME} || true"
+            sh "docker images | head -n 5 || true"
         }
     }
 }
