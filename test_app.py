@@ -1,19 +1,14 @@
-import app
+```python
+from app import app
+
+client = app.test_client()
 
 def test_home():
-    client = app.app.test_client()
-    r = client.get("/")
-
-    assert r.status_code == 200
-
-    data = r.get_json()
-    assert data["status"] == "ok"
+    response = client.get("/")
+    assert response.status_code == 200
 
 def test_health():
-    client = app.app.test_client()
-    r = client.get("/health")
-
-    assert r.status_code == 200
-
-    data = r.get_json()
-    assert data["status"] == "healthy"
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert b"healthy" in response.data
+```

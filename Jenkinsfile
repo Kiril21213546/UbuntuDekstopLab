@@ -1,77 +1,88 @@
+```groovy
 pipeline {
     agent any
 
     environment {
-        APP_NAME = "flask-app"
         IMAGE_NAME = "flask-ci-cd"
-        IMAGE_TAG = "latest"
+        CONTAINER_NAME = "flask-app"
         HOST_PORT = "8081"
         CONTAINER_PORT = "5000"
     }
 
     stages {
 
-        stage("Checkout") {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage("Build Docker image") {
+        stage('Build Docker image') {
             steps {
                 sh """
-                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                docker build -t ${IMAGE_NAME}:latest .
                 """
             }
         }
 
-        stage("Run tests") {
+        stage('Run tests') {
             steps {
                 sh """
-                docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} pytest -q
+                docker run --rm ${IMAGE_NAME}:latest pytest -q
                 """
             }
         }
 
-        stage("Deploy container") {
+        stage('Deploy container') {
             steps {
                 sh """
-                if docker ps -a --format '{{.Names}}' | grep -w ${APP_NAME}; then
-                    docker rm -f ${APP_NAME}
-                fi
+                docker rm -f ${CONTAINER_NAME} || true
 
-                docker run -d --name ${APP_NAME} \
-                -p ${HOST_PORT}:${CONTAINER_PORT} \
-                ${IMAGE_NAME}:${IMAGE_TAG}
+                docker run -d \
+                  --name ${CONTAINER_NAME} \
+                  -p ${HOST_PORT}:${CONTAINER_PORT} \
+                  ${IMAGE_NAME}:latest
+
+                sleep 5
+
+                docker ps
+                docker logs ${CONTAINER_NAME}
                 """
             }
         }
 
-        stage("Smoke test") {
+        stage('Smoke test') {
             steps {
-                sh '''
-                echo "Waiting for Flask to start..."
+                sh """
+                echo "Checking application health..."
 
-                for i in {1..20}; do
-                    if curl -s http://localhost:8081/health; then
-                        echo "App is up!"
+                for attempt in 1 2 3 4 5 6 7 8 9 10
+                do
+                    if curl -s http://localhost:${HOST_PORT}/health | grep healthy
+                    then
+                        echo "Application is healthy!"
                         exit 0
                     fi
 
-                    echo "Waiting... attempt $i"
-                    sleep 2
+                    echo "Retry \$attempt..."
+                    sleep 3
                 done
 
-                echo "App failed to start"
+                echo "Smoke test failed"
+
+                docker logs ${CONTAINER_NAME}
+
                 exit 1
-                '''
+                """
             }
         }
     }
 
     post {
         always {
-            sh "docker images | head -n 5 || true"
+            sh 'docker images | head -n 5'
         }
     }
 }
+```
+
