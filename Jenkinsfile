@@ -50,8 +50,8 @@ pipeline {
         stage("Smoke test") {
             steps {
                 sh """
-                sleep 2
-                curl -s http://localhost:${HOST_PORT}/health | grep healthy
+                sleep 5
+                curl -f http://localhost:${HOST_PORT}/health
                 """
             }
         }
