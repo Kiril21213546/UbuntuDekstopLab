@@ -1,12 +1,14 @@
 FROM jenkins/jenkins:lts
 
+# Переключаємося на root, щоб встановити системні пакети
 USER root
 
+# Оновлюємо систему та встановлюємо Docker CLI + curl
 RUN apt-get update && apt-get install -y lsb-release ca-certificates curl gnupg --no-install-recommends \
     && curl -fsSL https://docker.com | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://docker.com $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y docker-ce-cli --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Повертаємо користувача jenkins для безпеки
 USER jenkins
-

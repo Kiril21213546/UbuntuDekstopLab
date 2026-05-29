@@ -38,18 +38,21 @@ pipeline {
             }
         }
 
-        stage("Health Check (FIXED FINAL)") {
+        stage("Health Check (FINAL FIXED)") {
             steps {
                 sh """
-                echo "Waiting for Flask to start..."
+                echo "Waiting for Flask..."
+
                 sleep 5
 
-                for i in \$(seq 1 15); do
-                    STATUS=\$(curl -s http://localhost:${HOST_PORT}/health || true)
-                    echo "Attempt \$i: \$STATUS"
+                for i in \$(seq 1 20); do
+                    RESPONSE=\$(curl -s http://localhost:${HOST_PORT}/health || true)
 
-                    if echo "\$STATUS" | grep -q "healthy"; then
-                        echo "HEALTH CHECK OK"
+                    echo "Attempt \$i: \$RESPONSE"
+
+                    echo \$RESPONSE | grep -q '"status":"healthy"'
+                    if [ \$? -eq 0 ]; then
+                        echo "HEALTH CHECK PASSED"
                         exit 0
                     fi
 
