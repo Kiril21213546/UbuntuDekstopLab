@@ -10,7 +10,6 @@ pipeline {
     }
 
     stages {
-
         stage("Checkout") {
             steps {
                 checkout scm
@@ -38,7 +37,7 @@ pipeline {
             }
         }
 
-        stage("Health Check (FINAL FIXED)") {
+        stage("Health Check") {
             steps {
                 sh """
                 echo "Waiting for Flask..."
@@ -46,16 +45,14 @@ pipeline {
                 sleep 5
 
                 for i in \$(seq 1 20); do
-                    RESPONSE=\$(curl -s http://localhost:${HOST_PORT}/health || true)
+                    docker exec ${APP_NAME} python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:${CONTAINER_PORT}/health').read().decode())" | grep -q healthy
 
-                    echo "Attempt \$i: \$RESPONSE"
-
-                    echo \$RESPONSE | grep -q '"status":"healthy"'
                     if [ \$? -eq 0 ]; then
                         echo "HEALTH CHECK PASSED"
                         exit 0
                     fi
 
+                    echo "Attempt \$i failed"
                     sleep 2
                 done
 
